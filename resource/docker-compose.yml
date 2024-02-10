@@ -1,0 +1,67 @@
+version: '3.8'
+services:
+  app: &app
+    container_name: 1-app-service
+    build:
+      context: ../
+      dockerfile: ./resource/Dockerfile-native
+    depends_on:
+      - db
+    environment:
+      - DATABASE_URL=jdbc:postgresql://db:5432/postgres
+      - DATABASE_USER=postgres
+      - DATABASE_PASSWORD=postgres
+      - PORT=8080
+      - CONCURRENCY_SIZE=50
+      - CONECTION_SIZE=50
+    deploy:
+      resources:
+        limits:
+          cpus: "0.4"
+          memory: "50MB"
+  app2:
+    <<: *app
+    container_name: 2-app-service
+  app-java:
+    container_name: 3-app-service
+    <<: *app
+    build:
+      context: ../
+      dockerfile: ./resource/Dockerfile-java
+    profiles:
+      - java
+  db:
+    container_name: db-service
+    image: postgres
+    command: postgres-c max_connections=220 -c log_min_messages=FATAL
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    deploy:
+      resources:
+        limits:
+          cpus: "0.6"
+          memory: "410MB"
+  nginx:
+    container_name: nginx-service
+    image: nginx:latest
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - app
+      - app2
+    ports:
+      - "9999:9999"
+    deploy:
+      resources:
+        limits:
+          cpus: "0.1"
+          memory: "40MB"
+volumes:
+  postgres_data:

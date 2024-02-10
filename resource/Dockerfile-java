@@ -1,0 +1,38 @@
+ARG ANT_VERSION=1.10.14
+
+FROM alpine:latest as get-deps
+
+ARG ANT_VERSION
+
+RUN apk add --no-cache unzip curl && \ 
+    curl -o builder.zip "https://dlcdn.apache.org/ant/binaries/apache-ant-${ANT_VERSION}-bin.zip" && \
+    unzip builder.zip -d /opt/builder/
+
+FROM ghcr.io/graalvm/jdk-community:21 as builder
+
+ARG ANT_VERSION
+
+WORKDIR /app
+
+COPY --from=get-deps /opt/builder/ /opt/builder/
+COPY build.xml build.xml
+COPY ./src ./src
+COPY ./lib ./lib
+
+RUN ls -la /opt/builder/apache-ant-${ANT_VERSION}
+
+ENV PATH="/opt/builder/apache-ant-${ANT_VERSION}/bin:${PATH}"
+
+RUN mkdir meta && \
+    ant compile jar && \
+    java --version
+
+FROM ghcr.io/graalvm/jdk-community:21 as runner
+
+WORKDIR /app
+
+COPY --from=builder /app/build/jar/App.jar App.jar
+
+EXPOSE 8080
+
+ENTRYPOINT [ "java", "-jar", "/app/App.jar" ]

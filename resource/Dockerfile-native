@@ -1,0 +1,49 @@
+ARG ANT_VERSION=1.10.14
+
+FROM alpine:latest as get-deps
+
+ARG ANT_VERSION
+
+RUN apk add --no-cache unzip curl git && \ 
+    curl -o builder.zip "https://dlcdn.apache.org/ant/binaries/apache-ant-${ANT_VERSION}-bin.zip" && \
+    git clone https://github.com/oracle/graalvm-reachability-metadata.git /opt/graalvm-reachability-metadata  && \
+    unzip builder.zip -d /opt/builder/
+
+FROM ghcr.io/graalvm/jdk-community:21 as builder
+
+ARG ANT_VERSION
+
+WORKDIR /app
+
+COPY --from=get-deps /opt/builder/ /opt/builder/
+COPY --from=get-deps /opt/graalvm-reachability-metadata/metadata/org.postgresql ./meta/native-image/org.postgresql
+COPY build.xml build.xml
+COPY ./src ./src
+COPY ./lib ./lib
+
+RUN ls -la /opt/builder/apache-ant-${ANT_VERSION}
+
+ENV PATH="/opt/builder/apache-ant-${ANT_VERSION}/bin:${PATH}"
+
+RUN ant compile jar && \
+    java --version
+
+FROM ghcr.io/graalvm/native-image-community:21 as builder-native
+
+WORKDIR /app
+
+COPY --from=builder /app/build/jar/App.jar App.jar
+
+RUN native-image --static -jar App.jar --no-fallback --strict-image-heap -march=native && chmod +x ./App
+
+FROM alpine:latest as runner
+
+WORKDIR /app
+
+COPY --from=builder-native /app/App /usr/local/bin/App
+
+RUN chmod +x /usr/local/bin/App
+
+EXPOSE 8080
+
+ENTRYPOINT [ "/usr/local/bin/App" ]
