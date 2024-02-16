@@ -1,19 +1,19 @@
-FROM alpine:latest as get-deps
-
 ARG ANT_VERSION=1.10.14
 
-RUN apk add --no-cache unzip curl && \ 
+FROM alpine:latest as get-deps
+
+RUN apk add --no-cache unzip curl git && \ 
     curl -o builder.zip "https://dlcdn.apache.org/ant/binaries/apache-ant-${ANT_VERSION}-bin.zip" && \
+    git clone https://github.com/oracle/graalvm-reachability-metadata.git /opt/graalvm-reachability-metadata  && \
     unzip builder.zip -d /opt/builder/
 
 FROM ghcr.io/graalvm/jdk-community:21 as builder
 
 WORKDIR /app
 
-ARG ANT_VERSION=1.10.14
-
 COPY --from=get-deps /opt/builder/ /opt/builder/
-COPY ./meta ./meta
+COPY --from=get-deps /opt/graalvm-reachability-metadata/metadata/com.zaxxer ./meta/native-image/com.zaxxer
+COPY --from=get-deps /opt/graalvm-reachability-metadata/metadata/org.postgresql ./meta/native-image/org.postgresql
 COPY build.xml build.xml
 COPY ./src ./src
 COPY ./lib ./lib

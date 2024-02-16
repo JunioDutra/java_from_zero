@@ -32,14 +32,16 @@ public class TransactionController implements IResponseHandler {
                 var pst = con.prepareStatement("""
                            UPDATE users
                               SET amount = amount + ?
-                            WHERE id =  ?
+                            WHERE id = (select id from users where id = ? and  ("limit" * -1) < (amount + ?)for update)
                         RETURNING amount;
                          """)) {
-            con.setAutoCommit(false);
-
             TransactionRequest request = TransactionRequest.fromJson(httpRequest.body());
             var userId = httpRequest.pathVariable().orElseThrow();
             var user = User.find(users, Integer.parseInt(userId));
+
+            if (request.value() < 0) {
+                throw new IllegalArgumentException("Value must be greater than 0");
+            }
 
             if (!List.of('c', 'd').contains(request.type())) {
                 return HttpResponse.unprocessableEntity(
@@ -47,8 +49,10 @@ public class TransactionController implements IResponseHandler {
             }
 
             long amount = 0;
-            pst.setInt(1, request.type() == 'd' ? request.value() * -1 : request.value());
+            int value = request.type() == 'd' ? request.value() * -1 : request.value();
+            pst.setInt(1, value);
             pst.setInt(2, Integer.parseInt(userId));
+            pst.setInt(3, value);
 
             try (var rs = pst.executeQuery()) {
                 if (rs.next()) {
@@ -58,18 +62,7 @@ public class TransactionController implements IResponseHandler {
                 throw new RuntimeException(e);
             }
 
-            if (amount < user.limit() * -1) {
-                // if (request.type() == 'd')
-                //     System.out.println("Rollback values: %s, %s".formatted(user.limit(), amount));
-                con.rollback();
-            } else {
-                // if (request.type() == 'd')
-                //     System.out.println("Valores Ok: %s, %s".formatted(user.limit(), amount));
-                con.commit();
-                insertTransaction(con, user, request);
-            }
-
-            con.setAutoCommit(true);
+            insertTransaction(con, user, request);
 
             return HttpResponse.ok(new TransactionResponse(user.limit(), amount).toString());
         } catch (NotFoundException e) {
@@ -83,18 +76,17 @@ public class TransactionController implements IResponseHandler {
     }
 
     private void insertTransaction(Connection con, User user, TransactionRequest request) {
-        try(
-            var pst = con.prepareStatement("""
-                INSERT INTO transactions (user_id, amount, type, description)
-                                  VALUES (?, ?, ?, ?);
-                 """)) {
+        try (
+                var pst = con.prepareStatement("""
+                        INSERT INTO transactions (user_id, amount, type, description)
+                                          VALUES (?, ?, ?, ?);
+                         """)) {
             pst.setInt(1, user.id());
             pst.setInt(2, request.value());
             pst.setString(3, String.valueOf(request.type()));
             pst.setString(4, request.description());
 
             pst.execute();
-            con.commit();
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

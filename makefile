@@ -4,6 +4,9 @@ build-app:
 run-app:
 	docker compose up --build -d
 
+run-app-native:
+	docker compose up --build -d
+
 run-simple-test:
 	ab -n 1000 -c 100 http://localhost:8080/user/
 

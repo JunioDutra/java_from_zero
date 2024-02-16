@@ -3,7 +3,7 @@ services:
   app: &app
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile-native
     depends_on:
       - db
     environment:
@@ -19,7 +19,7 @@ services:
     <<: *app
   db:
     image: postgres
-    command: postgres -c shared_buffers=340MB -c max_connections=420 -c log_min_messages=FATAL
+    command: postgres -c shared_buffers=340MB -c max_connections=250 -c log_min_messages=FATAL
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
