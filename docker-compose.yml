@@ -1,6 +1,6 @@
 version: '3.8'
 services:
-  app:  &app
+  app: &app
     build:
       context: .
       dockerfile: Dockerfile
@@ -14,22 +14,26 @@ services:
       resources:
         limits:
           cpus: "0.2"
-          memory: "120MB"
+          memory: "90MB"
   app2:
     <<: *app
   db:
     image: postgres
+    command: postgres -c shared_buffers=340MB -c max_connections=420 -c log_min_messages=FATAL
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_DB=postgres
     volumes:
       - postgres_data:/var/lib/postgresql/data/
+      - ./resource/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
     deploy:
       resources:
         limits:
-          cpus: "0.6"
-          memory: "200MB"
+          cpus: "0.9"
+          memory: "330MB"
   nginx:
     image: nginx:latest
     volumes:
@@ -38,11 +42,11 @@ services:
       - app
       - app2
     ports:
-      - "9999:9999" 
+      - "9999:9999"
     deploy:
       resources:
         limits:
-          cpus: "0.5"
-          memory: "60MB"
+          cpus: "0.2"
+          memory: "40MB"
 volumes:
   postgres_data:

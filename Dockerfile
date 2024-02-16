@@ -1,29 +1,46 @@
-FROM ghcr.io/graalvm/jdk-community:21 as builder
+FROM alpine:latest as get-deps
 
 ARG ANT_VERSION=1.10.14
 
+RUN apk add --no-cache unzip curl && \ 
+    curl -o builder.zip "https://dlcdn.apache.org/ant/binaries/apache-ant-${ANT_VERSION}-bin.zip" && \
+    unzip builder.zip -d /opt/builder/
+
+FROM ghcr.io/graalvm/jdk-community:21 as builder
+
 WORKDIR /app
 
+ARG ANT_VERSION=1.10.14
+
+COPY --from=get-deps /opt/builder/ /opt/builder/
+COPY ./meta ./meta
 COPY build.xml build.xml
 COPY ./src ./src
 COPY ./lib ./lib
 
-ADD http://mirror.centos.org/centos/7/os/x86_64/Packages/unzip-6.0-21.el7.x86_64.rpm /tmp
+RUN ls -la /opt/builder/apache-ant-${ANT_VERSION}
 
 ENV PATH="/opt/builder/apache-ant-${ANT_VERSION}/bin:${PATH}"
 
-RUN rpm -i /tmp/unzip-6.0-21.el7.x86_64.rpm && \
-    curl -o builder.zip "https://dlcdn.apache.org/ant/binaries/apache-ant-${ANT_VERSION}-bin.zip" && \
-    unzip builder.zip -d /opt/builder/ && \
-    ant compile jar && \
+RUN ant compile jar && \
     java --version
 
-FROM ghcr.io/graalvm/jdk-community:21 as runner
+FROM ghcr.io/graalvm/native-image-community:21 as builder-native
 
 WORKDIR /app
 
 COPY --from=builder /app/build/jar/App.jar App.jar
 
+RUN native-image --static -jar App.jar --no-fallback --strict-image-heap -march=native && chmod +x ./App
+
+FROM alpine:latest as runner
+
+WORKDIR /app
+
+COPY --from=builder-native /app/App /usr/local/bin/App
+
+RUN chmod +x /usr/local/bin/App
+
 EXPOSE 8080
 
-CMD ["java", "-jar", "App.jar"]
+ENTRYPOINT [ "/usr/local/bin/App" ]

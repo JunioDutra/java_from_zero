@@ -61,9 +61,16 @@ public class DefaultHandler implements HttpHandler {
             OutputStream os = exchange.getResponseBody();
             os.write(response.body().getBytes());
             os.close();
-
-            logger.info("Handled request: " + exchange.getRequestURI());
         } catch (Exception e) {
+            var msg = SimpleJsonParser.simpleMessage("Internal server error");
+
+            OutputStream os = exchange.getResponseBody();
+            exchange.getResponseHeaders().set("Content-Type", "application/json");
+            exchange.sendResponseHeaders(503, msg.length());
+            // exchange.sendResponseHeaders(200, msg.length());
+            os.write(msg.getBytes());
+            os.close();
+
             logger.severe("Error handling request: " + e.getMessage());
             e.printStackTrace();
         }

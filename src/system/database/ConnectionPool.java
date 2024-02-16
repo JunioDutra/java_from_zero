@@ -1,63 +1,44 @@
 package system.database;
 
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
 import java.util.logging.Logger;
+
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
 
 public class ConnectionPool {
     private static final Logger logger = Logger.getLogger(ConnectionPool.class.getName());
 
-    private static ConnectionPool instance = null;
-    private static String url = System.getenv("DATABASE_URL");
-    private static String user = System.getenv("DATABASE_USER");
-    private static String password = System.getenv("DATABASE_PASSWORD");
-    private static int poolSize = 10;
+    private static ConnectionPool instance;
 
-    private List<Connection> connections;
+    private HikariDataSource ds;
 
     private ConnectionPool() {
-        connections = new ArrayList<>();
-        initializeConnections();
+        HikariConfig config = new HikariConfig();
+
+        logger.info("DATABASE_URL: " + System.getenv("DATABASE_URL"));
+        logger.info("DATABASE_USER: " + System.getenv("DATABASE_USER"));
+        logger.info("DATABASE_PASSWORD: " + System.getenv("DATABASE_PASSWORD"));
+
+        config.setJdbcUrl(System.getenv("DATABASE_URL"));
+        config.setUsername(System.getenv("DATABASE_USER"));
+        config.setPassword(System.getenv("DATABASE_PASSWORD"));
+        config.setMaximumPoolSize(200);
+        config.addDataSourceProperty("cachePrepStmts", "true");
+        config.addDataSourceProperty("prepStmtCacheSize", "250");
+        config.addDataSourceProperty("prepStmtCacheSqlLimit", "2048");
+
+        this.ds = new HikariDataSource(config);
     }
 
     public static ConnectionPool getInstance() {
         if (instance == null) {
             instance = new ConnectionPool();
         }
+
         return instance;
     }
 
-    private void initializeConnections() {
-        try {
-            for (int i = 0; i < poolSize; i++) {
-                Connection connection = DriverManager.getConnection(url, user, password);
-                connections.add(connection);
-            }
-        } catch (SQLException e) {
-            logger.severe("SQL State: %s\n%s".formatted(e.getSQLState(), e.getMessage()));
-        } catch (Exception e) {
-            e.printStackTrace();
-            logger.severe(e.getMessage());
-        }
-    }
-
-    public synchronized Optional<Connection> getConnection() {
-        if (connections.isEmpty()) {
-            logger.warning("Connection pool is empty");
-            return Optional.empty();
-        }
-
-        Connection connection = connections.remove(connections.size() - 1);
-        return Optional.of(connection);
-    }
-
-    public synchronized void releaseConnection(Connection connection) {
-        if (connection != null) {
-            connections.add(connection);
-        }
+    public HikariDataSource getDataSource() {
+        return this.ds;
     }
 }

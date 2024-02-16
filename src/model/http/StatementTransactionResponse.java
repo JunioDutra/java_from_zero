@@ -4,7 +4,7 @@ import java.time.LocalDateTime;
 
 import system.common.DateHelper;
 
-public record StatementTransactionResponse(long value, char type, String description, LocalDateTime createdAt) {
+public record StatementTransactionResponse(int value, String type, String description, LocalDateTime createdAt) {
     @Override
     public String toString() {
         return """

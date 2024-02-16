@@ -1,5 +1,6 @@
 package model.db;
 
+import java.sql.Connection;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -20,8 +21,8 @@ public record Transaction(int id, int userId, long amount, char type, String des
         SQLRunner.execute(sql);
     }
 
-    public static List<Transaction> list(Integer userId) {
-        return SQLRunner.executeQuery("SELECT * FROM transactions WHERE user_id = %s ORDER BY created_at DESC LIMIT 10".formatted(userId), rs -> {
+    public static List<Transaction> list(Connection connection, Integer userId) {
+        return SQLRunner.executeQuery(connection, "SELECT * FROM transactions WHERE user_id = %s ORDER BY created_at DESC LIMIT 10".formatted(userId), rs -> {
             var transactions = new ArrayList<Transaction>();
 
             while (rs.next()) {

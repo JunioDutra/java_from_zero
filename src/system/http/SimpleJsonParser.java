@@ -42,9 +42,10 @@ public class SimpleJsonParser {
 
         for (var p : props) {
             var pSlip = p.split(":");
-            map.put(
-                    pSlip[0].trim().replaceAll("\"", ""),
-                    pSlip[1].trim().replaceAll("\"", ""));
+            var key = pSlip[0].trim().replaceAll("\"", "");
+            var value = pSlip[1].trim().replaceAll("\"", "");
+
+            map.put(key, pSlip[1].trim().equals("null") ? null : value);
         }
 
         return map;
