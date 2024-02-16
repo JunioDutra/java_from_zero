@@ -1,17 +1,16 @@
 package system.database;
 
+import static system.common.Env.CONCURRENCY_SIZE;
+import static system.common.Env.DATABASE_PASSWORD;
+import static system.common.Env.DATABASE_URL;
+import static system.common.Env.DATABASE_USER;
+import static system.common.Env.getEnvInt;
+import static system.common.Env.getEnvStr;
+
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 
-import system.common.Env;
-
 public class ConnectionPool {
-    private static final int CONCURRENCY_SIZE = Env.getEnvInt("CONCURRENCY_SIZE", 10);
-    private static final String DATABASE_URL = Env.getEnvStr("DATABASE_URL",
-            "jdbc:postgresql://localhost:5432/postgres");
-    private static final String DATABASE_USER = Env.getEnvStr("DATABASE_USER", "postgres");
-    private static final String DATABASE_PASSWORD = Env.getEnvStr("DATABASE_PASSWORD", "postgres");
-
     private static ConnectionPool instance;
 
     private HikariDataSource ds;
@@ -19,10 +18,10 @@ public class ConnectionPool {
     private ConnectionPool() {
         HikariConfig config = new HikariConfig();
 
-        config.setJdbcUrl(DATABASE_URL);
-        config.setUsername(DATABASE_USER);
-        config.setPassword(DATABASE_PASSWORD);
-        config.setMaximumPoolSize(CONCURRENCY_SIZE);
+        config.setJdbcUrl(getEnvStr(DATABASE_URL, "jdbc:postgresql://localhost:5432/postgres"));
+        config.setUsername(getEnvStr(DATABASE_USER, "postgres"));
+        config.setPassword(getEnvStr(DATABASE_PASSWORD, "postgres"));
+        config.setMaximumPoolSize(getEnvInt(CONCURRENCY_SIZE, 10));
         config.addDataSourceProperty("cachePrepStmts", "true");
         config.addDataSourceProperty("prepStmtCacheSize", "250");
         config.addDataSourceProperty("prepStmtCacheSqlLimit", "2048");

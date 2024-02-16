@@ -10,6 +10,8 @@ services:
       - DATABASE_URL=jdbc:postgresql://db:5432/postgres
       - DATABASE_USER=postgres
       - DATABASE_PASSWORD=postgres
+      - PORT=8080
+      - CONCURRENCY_SIZE=10
     deploy:
       resources:
         limits:
@@ -17,6 +19,13 @@ services:
           memory: "90MB"
   app2:
     <<: *app
+  app-java:
+    <<: *app
+    build:
+      context: .
+      dockerfile: Dockerfile-java
+    profiles:
+      - java
   db:
     image: postgres
     command: postgres -c shared_buffers=340MB -c max_connections=250 -c log_min_messages=FATAL
