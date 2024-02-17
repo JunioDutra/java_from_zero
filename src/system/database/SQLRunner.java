@@ -4,6 +4,7 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.function.Function;
 import java.util.logging.Logger;
 
 public class SQLRunner {
@@ -23,8 +24,24 @@ public class SQLRunner {
         return null;
     }
 
+    public static <RESPONSE, ERROR extends Throwable> RESPONSE executeQuery(String sql, IPrepareStatementIterator istmt,
+            IResultSetIterator<RESPONSE> irs,
+            Function<? super ERROR, RESPONSE> exceptionHandler) throws ERROR {
+        try (var connection = ConnectionPool.getInstance().getDataSource().getConnection();
+                var statement = connection.prepareStatement(sql)) {
+
+            istmt.iterate(statement);
+
+            try (var rs = statement.executeQuery()) {
+                return irs.iterate(rs);
+            }
+        } catch (Throwable e) {
+            return exceptionHandler.apply((ERROR) e);
+        }
+    }
+
     public static void execute(String sql) {
-        try(var conn = ConnectionPool.getInstance().getDataSource().getConnection()) {
+        try (var conn = ConnectionPool.getInstance().getDataSource().getConnection()) {
             try (Statement stmt = conn.createStatement();) {
                 stmt.execute(sql);
             } catch (SQLException e) {
