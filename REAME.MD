@@ -1,0 +1,1 @@
+Projeto java sem uso de frameworks, apenas com a utilização de bibliotecas nativas do java.
